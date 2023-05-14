@@ -19,8 +19,8 @@ classdef controller < handle
             if ( nargin < 2 ) 
                 this.Kpos = 400;
                 this.Dpos = 2*sqrt(this.Kpos); % in order to be critically dumped.
-                this.Krot = 9;
-                this.Drot = 2*sqrt(this.Krot);
+                this.Krot = 400;
+                this.Drot = 40;
                 return;
             end
             this.Kpos = Kpos;
@@ -36,7 +36,7 @@ classdef controller < handle
         %  @param[in] q : Current joing angles.
         %  @param[in] dq : Current angular velocity of joints.
         %  @param[in] fext : External GENERALIZED forces.
-        function [q, dq, d2q, xe] = simulation(this,t,xe,yd,yd_dot,yd_ddot,Qd,wd,wd_dot,q,dq,fext)
+        function [q, dq, d2q, xe, Q] = simulation(this,t,xe,yd,yd_dot,yd_ddot,Qd,wd,wd_dot,q,dq,fext)
             if (nargin < 13)
                 fext = zeros(6,1);
             end
@@ -51,7 +51,14 @@ classdef controller < handle
             
             % Inverse dynamics controller.
             up = this.pos_control(xe,dx,yd,yd_dot,yd_ddot);
-            [ur,~,~] = this.rot_control(Q,Qd,w,wd,wd_dot);
+%             [ur,~,~] = this.rot_control(Q,Qd,w,wd,wd_dot);
+            temp = this.robot.fkine(q);
+            x_axis = temp(1:3,1);
+            ndy = make_unitary(yd_dot);
+            theta = acos(x_axis'*ndy);
+            ne = get_skew(x_axis)*ndy;
+            eo = theta*ne;
+            ur = -this.Drot*w-this.Krot*eo;
             u = [up; ur];
 
             % Closed loop inverse dynamics.
